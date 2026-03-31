@@ -1,0 +1,6 @@
+crewai
+langchain
+langchain-community
+ollama
+langdetect
+deep-translator

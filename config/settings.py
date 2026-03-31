@@ -1,0 +1,2 @@
+MODEL_NAME = "llama3"
+DEFAULT_LANGUAGE = "en"
