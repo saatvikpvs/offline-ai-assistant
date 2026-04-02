@@ -1,8 +1,10 @@
 from crewai import LLM
 
 def get_llm():
-    llm = LLM(
-        model="ollama/llama3",
-        base_url="http://localhost:11434"
+
+    return LLM(
+        model="ollama/mistral",
+        base_url="http://localhost:11434",
+        temperature=0.3,
+        max_tokens=80   # limit response length
     )
-    return llm

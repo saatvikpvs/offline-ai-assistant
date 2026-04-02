@@ -1,6 +1,48 @@
-venv/
+
+# Python
 __pycache__/
-*.pyc       
-.vscode/
-.env    
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env
+.env.local
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# React build
+frontend/build/
+
+# Logs
 *.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# AI models (very large)
+models/
+*.onnx
+*.bin
+*.gguf
+
+# Whisper cache
+.cache/
+huggingface/
+
+# Audio temp files
+input.wav
+input.webm
+output.wav
+
+# VSCode settings
+.vscode/
+
+# Mac
+.AppleDouble
+.LSOverride
+
