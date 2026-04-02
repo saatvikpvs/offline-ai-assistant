@@ -1,21 +1,24 @@
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 
-export default function AvatarViewer({ audio }) {
+export default function AvatarViewer({ avatar, audio }) {
 
-let vrm = null;
-let analyser = null;
-let dataArray = null;
+const sceneRef = useRef();
+const cameraRef = useRef();
+const rendererRef = useRef();
+const vrmRef = useRef();
+
+const analyserRef = useRef();
+const dataArrayRef = useRef();
 
 let mouseX = 0;
 let mouseY = 0;
 
+// ---------- Scene Setup ----------
 useEffect(() => {
-
-  const clock = new THREE.Clock();
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x222222);
@@ -27,44 +30,22 @@ useEffect(() => {
     1000
   );
 
-  camera.position.set(0, 1.6, 8);
+  camera.position.set(0,1.6,8);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  const renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setSize(window.innerWidth,window.innerHeight);
 
   document.body.appendChild(renderer.domElement);
 
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(1, 1, 1);
+  const light = new THREE.DirectionalLight(0xffffff,1);
+  light.position.set(1,1,1);
   scene.add(light);
 
-  window.addEventListener("mousemove", (event) => {
-    mouseX = (event.clientX / window.innerWidth) - 0.5;
-    mouseY = (event.clientY / window.innerHeight) - 0.5;
-  });
+  sceneRef.current = scene;
+  cameraRef.current = camera;
+  rendererRef.current = renderer;
 
-  const loader = new GLTFLoader();
-  loader.register(parser => new VRMLoaderPlugin(parser));
-
-  loader.load("/8329890252317737768.vrm", (gltf) => {
-
-    vrm = gltf.userData.vrm;
-
-    scene.add(vrm.scene);
-
-    vrm.scene.rotation.y = Math.PI;
-    vrm.scene.scale.set(2,2,2);
-
-    // Reset pose
-    vrm.humanoid.resetNormalizedPose();
-
-    // Fix T-pose (arms down)
-    const leftArm = vrm.humanoid.getNormalizedBoneNode("leftUpperArm");
-    const rightArm = vrm.humanoid.getNormalizedBoneNode("rightUpperArm");
-
-    if(leftArm) leftArm.rotation.z = 1.3;
-    if(rightArm) rightArm.rotation.z = -1.3;
-  });
+  const clock = new THREE.Clock();
 
   function animate(){
 
@@ -72,31 +53,30 @@ useEffect(() => {
 
     const delta = clock.getDelta();
 
-    if(vrm) vrm.update(delta);
+    if(vrmRef.current){
+      vrmRef.current.update(delta);
+    }
 
     // Lip sync
-    if(vrm && analyser){
+    if(vrmRef.current && analyserRef.current){
 
-      analyser.getByteFrequencyData(dataArray);
+      analyserRef.current.getByteFrequencyData(dataArrayRef.current);
 
-      const volume = dataArray.reduce((a,b)=>a+b)/dataArray.length;
+      const volume = dataArrayRef.current.reduce((a,b)=>a+b)/dataArrayRef.current.length;
 
-      if(vrm.expressionManager){
-        vrm.expressionManager.setValue("aa", volume/255);
+      if(vrmRef.current.expressionManager){
+        vrmRef.current.expressionManager.setValue("aa", volume/255);
       }
     }
 
     // Head follow cursor
-    if(vrm){
+    if(vrmRef.current){
 
-      const head = vrm.humanoid.getNormalizedBoneNode("head");
+      const head = vrmRef.current.humanoid.getNormalizedBoneNode("head");
 
       if(head){
-
         head.rotation.y = mouseX * 0.6;
         head.rotation.x = -mouseY * 0.4;
-
-        head.rotation.z = Math.sin(Date.now()*0.002)*0.05;
       }
     }
 
@@ -105,25 +85,89 @@ useEffect(() => {
 
   animate();
 
+  window.addEventListener("mousemove",(event)=>{
+    mouseX = (event.clientX / window.innerWidth) - 0.5;
+    mouseY = (event.clientY / window.innerHeight) - 0.5;
+  });
+
 },[]);
 
 
-// Audio analyser for lip sync
+// ---------- Avatar Loader ----------
+useEffect(()=>{
+
+  const loader = new GLTFLoader();
+  loader.register(parser => new VRMLoaderPlugin(parser));
+
+  if(vrmRef.current){
+    sceneRef.current.remove(vrmRef.current.scene);
+    vrmRef.current = null;
+  }
+
+  loader.load(avatar,(gltf)=>{
+
+    const vrm = gltf.userData.vrm;
+
+    vrm.scene.rotation.y = Math.PI;
+    vrm.scene.scale.set(2,2,2);
+
+    // smooth fade in
+    vrm.scene.traverse(obj=>{
+      if(obj.material){
+        obj.material.transparent = true;
+        obj.material.opacity = 0;
+      }
+    });
+
+    sceneRef.current.add(vrm.scene);
+    vrmRef.current = vrm;
+
+    // Fix arms
+    const leftArm = vrm.humanoid.getNormalizedBoneNode("leftUpperArm");
+    const rightArm = vrm.humanoid.getNormalizedBoneNode("rightUpperArm");
+
+    if(leftArm) leftArm.rotation.z = 1.3;
+    if(rightArm) rightArm.rotation.z = -1.3;
+
+    // fade animation
+    let opacity = 0;
+
+    function fade(){
+      opacity += 0.05;
+
+      vrm.scene.traverse(obj=>{
+        if(obj.material){
+          obj.material.opacity = Math.min(opacity,1);
+        }
+      });
+
+      if(opacity < 1){
+        requestAnimationFrame(fade);
+      }
+    }
+
+    fade();
+
+  });
+
+},[avatar]);
+
+
+// ---------- Audio Lip Sync ----------
 useEffect(()=>{
 
   if(!audio) return;
 
   const audioContext = new AudioContext();
-
   const source = audioContext.createMediaElementSource(audio);
 
-  analyser = audioContext.createAnalyser();
+  const analyser = audioContext.createAnalyser();
 
   source.connect(analyser);
-
   analyser.connect(audioContext.destination);
 
-  dataArray = new Uint8Array(analyser.frequencyBinCount);
+  analyserRef.current = analyser;
+  dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
 
 },[audio]);
 

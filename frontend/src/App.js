@@ -8,11 +8,26 @@ function App() {
   const [audioElement, setAudioElement] = useState(null);
   const [recording, setRecording] = useState(false);
 
+  // ---- VRM Avatar List ----
+  const avatars = [
+    "/3841841720510957418.vrm",
+    "/8329890252317737768.vrm"
+  ];
+
+  const [avatarIndex, setAvatarIndex] = useState(0);
+
+  const nextAvatar = () => {
+    setAvatarIndex((avatarIndex + 1) % avatars.length);
+  };
+
+  const prevAvatar = () => {
+    setAvatarIndex((avatarIndex - 1 + avatars.length) % avatars.length);
+  };
+
   async function speak() {
 
     try {
 
-      // Greeting only once
       if (!greeted) {
 
         const greet = await fetch("http://localhost:5000/greet");
@@ -24,7 +39,6 @@ function App() {
         setGreeted(true);
       }
 
-      // Request microphone
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       const recorder = new MediaRecorder(stream);
@@ -56,7 +70,6 @@ function App() {
         }
 
         const audioBlob = await response.blob();
-
         const audio = new Audio(URL.createObjectURL(audioBlob));
 
         setAudioElement(audio);
@@ -66,7 +79,6 @@ function App() {
 
       recorder.start();
 
-      // Stop recording automatically after 8 seconds
       setTimeout(() => {
         if (recorder.state !== "inactive") recorder.stop();
       }, 8000);
@@ -84,11 +96,21 @@ function App() {
 
       <h2>AI Avatar Assistant</h2>
 
+      {/* Avatar Selector */}
+      <div style={{marginBottom:"10px"}}>
+        <button onClick={prevAvatar}>◀</button>
+        <span style={{margin:"0 10px"}}>Avatar {avatarIndex + 1}</span>
+        <button onClick={nextAvatar}>▶</button>
+      </div>
+
       <button onClick={speak} disabled={recording}>
         {recording ? "🎙 Listening..." : "🎤 Speak"}
       </button>
 
-      <AvatarViewer audio={audioElement} />
+      <AvatarViewer
+        avatar={avatars[avatarIndex]}
+        audio={audioElement}
+      />
 
     </div>
   );
