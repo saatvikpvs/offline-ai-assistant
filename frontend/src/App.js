@@ -57,8 +57,13 @@ function App() {
     }
   }, [messages]);
 
+  const hasGreeted = useRef(false);
+
   // ---------- Auto-greet on load ----------
   useEffect(() => {
+    if (hasGreeted.current) return;
+    hasGreeted.current = true;
+
     const fetchGreeting = async () => {
       try {
         const res = await fetch("http://localhost:5000/greet");
