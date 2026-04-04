@@ -11,7 +11,6 @@ if(event.data?.source==="readyplayerme"){
 if(event.data.eventName==="v1.avatar.exported"){
 
 setAvatar(event.data.data.url);
-
 }
 
 }
