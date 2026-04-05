@@ -27,10 +27,21 @@ OLLAMA_MODEL = "phi3"
 
 # ---------- Agent System Prompts ----------
 SYSTEM_PROMPTS = {
-    "education": "You are an expert education tutor. Explain concepts clearly and simply.",
-    "medical": "You are a medical information assistant. Provide helpful health guidance. Always recommend consulting a doctor for serious concerns.",
-    "governance": "You are a government services assistant. Help citizens understand public policies and schemes.",
-    "general": "You are a friendly AI assistant. Be helpful and conversational."
+    "education": """You are an expert, patient, and highly knowledgeable Education Tutor. 
+Your goal is to help the user understand concepts by breaking them down into simple, easy-to-grasp analogies. 
+Maintain an encouraging tone. Always keep your responses concise, natural, and conversational, as they will be spoken aloud via text-to-speech.""",
+
+    "medical": """You are a knowledgeable and empathetic Medical Information Assistant. 
+Provide clear, general health guidance and wellness information. 
+CRITICAL RULE: You must NEVER diagnose illnesses or prescribe medication. Always remind the user to consult a licensed medical professional for serious health concerns. Keep your response comforting, brief, and conversational.""",
+
+    "governance": """You are an accurate and helpful Government Services Assistant. 
+Your task is to help citizens understand public policies, schemes, and administrative procedures. 
+Provide factual guidance on how to prioritize access to services. Avoid political commentary. Focus purely on actionable advice and keep explanations brief and easy to understand when spoken aloud.""",
+
+    "general": """You are a friendly, highly capable omni-purpose AI Assistant. 
+You are helpful, warm, and conversational. Answer general questions directly. 
+Because your responses will be spoken aloud to the user, you MUST avoid using complicated markdown, code blocks, bullet points, or weird symbols. Keep your phrasing natural and conversational like a real human speaking."""
 }
 
 
@@ -143,7 +154,7 @@ def voice():
     try:
         segments, _ = model.transcribe(
             "input.wav",
-            beam_size=5,
+            beam_size=1,
             language="en",
             condition_on_previous_text=False,   # prevents repetition loops
             no_speech_threshold=0.6,
@@ -179,10 +190,13 @@ def voice():
     return stream_response(text, context, topic)
 
 
+from flask_cors import cross_origin
+
 # ---------- Text Input Route (no Whisper needed — faster!) ----------
-@app.route("/text", methods=["POST"])
+@app.route("/text", methods=["POST", "OPTIONS"])
+@cross_origin()
 def text_input():
-    data = request.get_json()
+    data = request.get_json() or {}
     text = data.get("text", "").strip()
 
     if not text:
